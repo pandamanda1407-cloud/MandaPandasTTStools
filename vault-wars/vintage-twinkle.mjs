@@ -4,7 +4,7 @@ import {TikTokLiveConnection,WebcastEvent,ControlEvent} from 'tiktok-live-connec
 import {normalize} from './live.mjs';
 const site=new URL(process.env.TREE_SITE).origin,secret=process.env.TREE_RELAY_SECRET;
 if(!secret)throw new Error('Missing relay configuration');
-const overlayPage="<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"referrer\" content=\"no-referrer\"><title>Vintage Twinkle · Stream overlay</title><style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}vintage-tree{display:block;width:100%;height:100%}vintage-tree[hidden]{display:none}</style><vintage-tree hidden role=\"img\" aria-label=\"Christmas gift goal tree\"></vintage-tree><script type=\"module\" src=\"/tree.js\"></script><script>\nconst token=location.hash.slice(1),tree=document.querySelector('vintage-tree');let last=0;\nasync function refresh(){try{\n const r=await fetch('/api/view',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(9000)});\n if(r.status===404||r.status===403){last=0;tree.hidden=true;return}if(!r.ok)throw Error();\n const s=await r.json();if(!s.goal)throw Error();if(s.showCounter&&s.counterText)tree.setAttribute('counter-text',s.counterText);else tree.removeAttribute('counter-text');tree.setAttribute('tree-style',s.treeStyle||'vintage');tree.setAttribute('led-mode',s.ledMode||'rainbow');tree.setAttribute('led-color',s.ledColor||'#ab70ff');tree.setAttribute('sections',s.sections);tree.setAttribute('step',Math.min(s.sections,Math.floor(s.count*s.sections/s.goal)));tree.hidden=false;last=Date.now()\n}catch{if(Date.now()-last>120000)tree.hidden=true}finally{setTimeout(refresh,2500)}}\nif(/^[a-f0-9]{32}$/.test(token))refresh();\n</script></html>\n";
+const overlayPage="<!doctype html><html lang=\"en\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"referrer\" content=\"no-referrer\"><title>Vintage Twinkle · Stream overlay</title><style>*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:transparent;overflow:hidden}vintage-tree{display:block;width:100%;height:100%}vintage-tree[hidden]{display:none}</style><vintage-tree hidden role=\"img\" aria-label=\"Christmas gift goal tree\"></vintage-tree><script type=\"module\" src=\"/tree.js\"></script><script>\nconst token=location.hash.slice(1),tree=document.querySelector('vintage-tree');let last=0;\nasync function refresh(){try{\n const r=await fetch('/api/view',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:AbortSignal.timeout(9000)});\n if(r.status===404||r.status===403){last=0;tree.hidden=true;return}if(!r.ok)throw Error();\n const s=await r.json();if(!s.goal)throw Error();if(s.showCounter&&s.counterText)tree.setAttribute('counter-text',s.counterText);else tree.removeAttribute('counter-text');tree.setAttribute('tree-size',s.treeSize||'medium');\n tree.setAttribute('counter-font',s.counterFont||'basic');tree.setAttribute('counter-size',s.counterSize||100);tree.setAttribute('counter-color',s.counterColor||'#fff8e8');\n tree.setAttribute('tree-style',s.treeStyle||'vintage');tree.setAttribute('led-mode',s.ledMode||'rainbow');tree.setAttribute('led-color',s.ledColor||'#ab70ff');tree.setAttribute('sections',s.sections);tree.setAttribute('step',Math.min(s.sections,Math.floor(s.count*s.sections/s.goal)));tree.hidden=false;last=Date.now()\n}catch{if(Date.now()-last>120000)tree.hidden=true}finally{setTimeout(refresh,2500)}}\nif(/^[a-f0-9]{32}$/.test(token))refresh();\n</script></html>\n";
 const feeds=new Map();
 let storageReady=false;
 async function call(payload){
@@ -70,6 +70,9 @@ for(const style of ['storybook','pine','spruce']){
   const path='/tree/'+style+'-'+state+'.webp';allowed.set(path,path);
  }
 }
+for(const name of ['basic','thin','cursive','bold','christmas']){
+ const path='/fonts/'+name+'.woff2';allowed.set(path,path);
+}
 http.createServer(async(req,res)=>{
  try{
   const path=new URL(req.url,'http://localhost').pathname;
@@ -82,7 +85,7 @@ http.createServer(async(req,res)=>{
   if(path==='/api/view'&&!/^Bearer [a-f0-9]{32}$/.test(req.headers.authorization||'')){res.writeHead(404);return res.end()}
   const target=allowed.get(path);
   const upstream=await fetch(site+target,{headers:path==='/api/view'?{Authorization:req.headers.authorization}:{},redirect:'manual',signal:AbortSignal.timeout(12000)});
-  const cache=path==='/api/view'?'no-store':(path.startsWith('/tree/')?'public,max-age=86400':'no-cache');
+  const cache=path==='/api/view'?'no-store':((path.startsWith('/tree/')||path.startsWith('/fonts/'))?'public,max-age=86400':'no-cache');
   res.writeHead(upstream.status,{'Content-Type':upstream.headers.get('content-type')||'text/plain','Cache-Control':cache,'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff'});
   res.end(Buffer.from(await upstream.arrayBuffer()));
  }catch{res.writeHead(503);res.end('Waking up. Please retry.')}
